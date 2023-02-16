@@ -51,6 +51,9 @@ class vehicles:
         self.vin                = None
         self.vondat             = None
 
+        # attributes to be resolved with second api call
+        self.colorCode          = None
+
     def get_csv_attibutes(self, row: list):
         """
         Takes the parsed list of csv row attributes and assigns these to their respective attributes.

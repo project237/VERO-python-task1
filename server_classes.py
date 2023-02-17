@@ -4,7 +4,26 @@ import csv
 FILE_NAME = 'vehicles.csv'
 
 class vehicles_handler:
-    pass
+    def __init__(self):
+        pass
+
+    def request_vehicle_info():
+        pass
+
+    def populate_csv_attributes():
+        pass
+
+    def populate_json_attributes():
+        pass
+
+    def filter_hu_none():
+        pass
+
+    def resolve_colorCode():
+        pass
+
+    def save_to_files():
+        pass
 
 class vehicles:
     """

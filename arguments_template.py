@@ -5,7 +5,7 @@ import argparse
 from distutils import util
 from pprint import pprint
 
-FILENAME = "vehicles.csv"
+INPUT_FILE = "vehicles.csv"
 KEYS     = []
 COLORED  = True
 
@@ -14,8 +14,8 @@ def main():
     parser.add_argument('-k', '--keys', nargs='+', help='input keys')
     parser.add_argument('-c', '--colored', default=True, help='colored flag', type=lambda x: bool(util.strtobool(x)))
     # parser.add_argument('-f', '--filename', default="vehicles.csv", help='filename for csv', type=str)
-    # FILENAME = args.filename or FILENAME  
-    # print(FILENAME)
+    # INPUT_FILE = args.filename or INPUT_FILE  
+    # print(INPUT_FILE)
 
     args    = parser.parse_args()
     KEYS    = args.keys

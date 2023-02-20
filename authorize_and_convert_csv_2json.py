@@ -20,12 +20,12 @@ file_paths = {
     'api_response_file' : os.path.join(output_dir, API_RESPONSE_FILE)
 }
 
-headers = {
+REQUEST_HEADERS = {
     'Authorization': 'Basic QVBJX0V4cGxvcmVyOjEyMzQ1NmlzQUxhbWVQYXNz',
     'Content-Type' : 'application/json'
 }
 
-data = {
+REUQEST_JSON = {
     'username': '365',
     'password': '1'
 }
@@ -37,30 +37,33 @@ def resolve_colorCode(labelId: str, headers: dict, data: dict):
     color_url = URL_COLORS + labelId
     print()
     print("color_url: ", color_url)
-    response = requests.get(color_url, headers=headers, json=data)
+
+    response = requests.get(color_url, headers=REQUEST_HEADERS, json=REUQEST_JSON)
     response_json = response.json()[0] # response is a list of dicts (one dict in this case)
+
     pprint(response_json)
     colorCode = response_json['colorCode']
+    
     # reassign to none if the return value is empty string
     if colorCode == "":
         colorCode = None
     return colorCode
 
-if __name__ == "__main__": 
+
+def main(filter_hu: bool = True):
 
     # logging in and getting the access token
-    new_access_token = requests.post(URL_LOGIN, headers=headers, json=data).json()["oauth"]["access_token"]
-    # new_access_token = response_login.json()["oauth"]["access_token"]
+    new_access_token = requests.post(URL_LOGIN, headers=REQUEST_HEADERS, json=REUQEST_JSON).json()["oauth"]["access_token"]
 
     # setting the new access token in the headers
-    headers["Authorization"] = "Bearer " + new_access_token
+    REQUEST_HEADERS["Authorization"] = "Bearer " + new_access_token
 
-    response_query = requests.get(URL_QUERY, headers=headers, json=data)
-    response_query_json = response_query.json() # this is a list of dictionaries
+    response_query = requests.get(URL_QUERY, headers=REQUEST_HEADERS, json=REUQEST_JSON)
+    RESPONSE_QUERY_JSON = response_query.json() # this is a list of dictionaries
 
     # INITIALIZING OBJECTS AND SETTING THE CSV ATTRIBUTES
 
-    vehicles_dict = {}
+    VEHICLES_DICT = {}
 
     # initialize the vehicles objects and populate the csv attributes
     with open(FILE_NAME, 'r', newline='') as csvfile:
@@ -69,41 +72,44 @@ if __name__ == "__main__":
         for row in reader:
             vehicle            = vehicles()
             key                = vehicle.get_csv_attibutes(row)
-            vehicles_dict[key] = vehicle
+            VEHICLES_DICT[key] = vehicle
 
     # SETTING THE RESPONSE JSON ATTRIBUTES
 
     # pass each dict in the list by calling set_json_attributes on the the object with same key
-    for response_dict in response_query_json:
+    for response_dict in RESPONSE_QUERY_JSON:
+        # pprint(response_dict["labelIds"])
         key = response_dict['kurzname']
         try:
-            vehicles_dict[key].set_json_attributes(response_dict)
+            VEHICLES_DICT[key].set_json_attributes(response_dict)
         except KeyError:
             continue
 
     print()
-    print(len(vehicles_dict))
+    print(len(VEHICLES_DICT))
     print()
-    # pprint(vars(vehicles_dict))
+    # pprint(vars(VEHICLES_DICT))
 
     # RESOLVING THE COLOR CODES AND DELETING THE ONES WITH NONE HU
-    for k, vehicle in vehicles_dict.copy().items():
-        # # delete ones with None hu
-        # if vehicle.hu == None:
-        #     del vehicles_dict[k]
-        #     continue
+    for k, vehicle in VEHICLES_DICT.copy().items():
+        # delete ones with None hu
+        if filter_hu and vehicle.hu == None:
+            del VEHICLES_DICT[k]
+            continue
         # resolve colorCode
         if vehicle.labelIds != None:
-            vehicle.colorCode = resolve_colorCode(vehicle.labelIds, headers, data)
+            vehicle.colorCode = resolve_colorCode(vehicle.labelIds, REQUEST_HEADERS, REUQEST_JSON)
 
     # SAVE THE VEHICLES_DICT TO A JSON FILE
-    vehicles_list = list(vehicles_dict.values())
+    vehicles_list = list(VEHICLES_DICT.values())
     json_data = json.dumps([vars(v) for v in vehicles_list], indent=4, ensure_ascii=False)
+    
     with open(file_paths['output_file'], 'w') as f:
         f.write(json_data)
 
     # Use this to write the response to a file
     with open(file_paths['api_response_file'], 'w') as f:
-        f.write(response_query.text)
+        f.write(json.dumps(response_query.json(), indent=4, ensure_ascii=False))
 
-
+if __name__ == "__main__":
+    main() # filter_hu = True

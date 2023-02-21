@@ -1,15 +1,36 @@
 
+""" 
+============== ASSUMPTIONS ==============
+
+- The key used in vehicles_handler.vehicles_dict is the kurzname attribute, 
+thus all csv rows and json objects must have this attribute as a unique value or else the last appearing entry with the same
+kurzname will overwrite (any) earlier ones. 
+
+- For a vehicle object to be parsed and included, its kurzname must be present both in the csv file and api response,
+so, if it is only present in the api response, it will not be included
+
+- The csv columns are always in the same order. 
+"""
+
 import requests
 import csv
 from pprint import pprint
 
-FILE_NAME   = "vehicles.csv" # for testing
+# THESE ARE SET FOR TESTING, AND WILL NOT BE USED WHEN RUNNING THE SERVER
+OUTPUT_DIRECTORY = "output"
+INPUT_FILE_NAME  = "vehicles.csv"
+OUTPUT_FILE_NAME = "vehicles_handler_output.json"
 
 class vehicles_handler:
     """
     In this class, we organize the code that processes vehicles.csv and returns a json file that will be sent to the client.
 
     No init method since this class is only going to have a single instance. So we are using class variables instead of instance variables.
+
+    To run the vehicles_handler, call main() immediately after initializing an instance of the class
+    In this method csv_file argument must be provided, also,
+    set agument filter_hu to True if you'd like to 
+    remove all objects with field hu empty, and False otherwise
     """
     url_login   = 'https://api.baubuddy.de/index.php/login'
     url_query   = 'https://api.baubuddy.de/index.php/v1/vehicles/select/active'
@@ -29,7 +50,9 @@ class vehicles_handler:
     json_data           = None
     vehicles_dict       = {}
 
-    def main(self, csv_file, filter_hu: bool = False):
+    def main(self, csv_file, filter_hu=True):
+        # check the explanation at the top of class declaration
+        assert csv_file, "\nERROR - INPUT FILE FOR vehicles_handler NOT PROVIDED"
         self.filter_hu = filter_hu
         self.csv_file = csv_file
         self.request_vehicle_info()
@@ -42,12 +65,20 @@ class vehicles_handler:
         Authorizes and requests vehicle info from url_query endpoint.
         """
         # logging in and getting the access token
-        new_access_token = requests.post(self.url_login, headers=self.request_headers, json=self.reuqest_json).json()["oauth"]["access_token"]
+        try:
+            new_access_token = requests.post(self.url_login, headers=self.request_headers, json=self.reuqest_json).json()["oauth"]["access_token"]
+        except Exception as e:
+            print(f"EXCEPTION OCURRED WHILE LOGGING INTO {self.url_login}")
+            raise e
 
         # setting the new access token in the headers
         self.request_headers["Authorization"] = "Bearer " + new_access_token
 
-        response_query = requests.get(self.url_query, headers=self.request_headers, json=self.reuqest_json)
+        try:
+            response_query = requests.get(self.url_query, headers=self.request_headers, json=self.reuqest_json)
+        except Exception as e:
+            print(f"EXCEPTION OCURRED WHILE REQUESTING VEHICLE INFO FROM {self.url_query}")
+            raise e
         self.response_query_json = response_query.json() # this is a list of dictionaries
 
     def populate_vehicle_attributes(self):
@@ -78,7 +109,12 @@ class vehicles_handler:
         print()
         print("color_url: ", color_url)
 
-        response = requests.get(color_url, headers=self.request_headers, json=self.reuqest_json)
+        try:
+            response = requests.get(color_url, headers=self.request_headers, json=self.reuqest_json)
+        except Exception as e:
+            print(f"EXCEPTION OCURRED WHILE COLOR CODES FROM {color_url}")
+            raise e
+
         response_json = response.json()[0] # response is a list of dicts (one dict in this case)
 
         pprint(response_json)
@@ -100,21 +136,11 @@ class vehicles_handler:
                 vehicle.colorCode = self.resolve_colorCode(vehicle.labelIds)
         
         self.json_data = list(self.vehicles_dict.values())
-        # vehicles_list = list(self.vehicles_dict.values())
-        # self.json_data = json.dumps([vars(v) for v in vehicles_list], indent=4, ensure_ascii=False)
     
 
 class vehicles:
     """
     Objects of this class contain info on the parsed data structures (from the csv file and api response).
-
-    ASSUMPTIONS:
-    - For the a vehicle object to be parsed and included, its kurzname must be present both in the csv file,
-    so, if it is only present in the json response, it will not be included.
-    - The primary key is the kurzname attribute, 
-    thus all csv rows and json objects must have this attribute as a unique value or else the last appearing entry with the same
-    kurzname will overwrite (any) earlier ones. 
-    - The csv columns are always in the same order. 
     """
     
     def __init__(self):
@@ -152,17 +178,9 @@ class vehicles:
         # attributes to be resolved with second api call
         self.colorCode          = None
 
-    def get_csv_attibutes(self, row: list):
+    def get_csv_attibutes(self, row):
         """
         Takes the parsed list of csv row attributes and assigns these to their respective attributes.
-
-        gruppe
-        kurzname
-        langtext
-        info
-        lagerort
-        labelIds
-        labelIds
 
         Args:
             row (list): A list of the parsed csv row.
@@ -180,7 +198,14 @@ class vehicles:
         # return the primary key
         return self.kurzname
     
-    def set_json_attributes(self, json_object: dict):
+    def set_json_attributes(self, json_object):
+        """
+        Sets fields from the api response (json_object) to their respective attributes.
+
+        Args:
+            json_object (dict): From api response for vehicle info. 
+        """
+
         for key in json_object:
             setattr(self, key, json_object[key])
 
@@ -192,7 +217,7 @@ if __name__ == "__main__":
 
     # TEST CODE FOR CLASS vehicles
     # # initialize the vehicles objects and populate the csv attributes
-    # with open(FILE_NAME, 'r', newline='') as csvfile:
+    # with open(INPUT_FILE_NAME, 'r', newline='') as csvfile:
     #     reader = csv.reader(csvfile, delimiter=';', quotechar='"')
     #     for row in reader:
     #         vehicle            = vehicles()
@@ -214,9 +239,9 @@ if __name__ == "__main__":
     vh = vehicles_handler()
     output = None
 
-    with open(FILE_NAME, 'r', newline='') as csvfile:
+    with open(INPUT_FILE_NAME, 'r', newline='') as csvfile:
         output = vh.main(csvfile, filter_hu=True)
 
     # save output file as "vehicles_handler_output.json"
-    with open("output/vehicles_handler_output.json", "w", encoding="utf-8") as f:
+    with open(f"{OUTPUT_DIRECTORY}/{OUTPUT_FILE_NAME}", "w", encoding="utf-8") as f:
         f.write(output)

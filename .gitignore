@@ -127,3 +127,4 @@ venv.bak/
 dmypy.json
 .gitignore
 dummy.txt
+authorize_and_convert_csv_2json.py

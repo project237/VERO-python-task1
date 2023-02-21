@@ -12,6 +12,8 @@ Launch this on
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from server_classes import vehicles_handler
 
+FILTER_HU = 0
+
 app = FastAPI()
 
 @app.post("/csv_to_json")
@@ -39,7 +41,7 @@ async def csv_to_json(csv_file: UploadFile = File(...)):
     csv_contents = csv_contents.decode("utf-8").split("\n")
 
     # this is a simple list of dictionaries but will be serialized to JSON when returned by the API
-    processed_json = vehicles_handler().main(csv_contents, filter_hu=0)
+    processed_json = vehicles_handler().main(csv_contents, filter_hu=FILTER_HU)
 
     return processed_json
     
